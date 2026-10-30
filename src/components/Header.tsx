@@ -122,22 +122,26 @@ export const Header: React.FC<HeaderProps> = ({
 
               <div
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border font-medium ${
-                  status?.elevenlabs_configured
+                  status?.elevenlabs_api_status === 'error'
+                    ? 'bg-red-50 border-red-200 text-red-800'
+                    : status?.elevenlabs_configured && status?.elevenlabs_api_status !== 'missing_key'
                     ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
                     : 'bg-amber-50 border-amber-200 text-amber-800'
                 }`}
                 title={
-                  status?.elevenlabs_configured
+                  status?.elevenlabs_api_error || (status?.elevenlabs_api_status === 'connected'
                     ? 'ElevenLabs API connected'
-                    : 'ELEVENLABS_API_KEY missing on server'
+                    : 'ELEVENLABS_API_KEY missing on server')
                 }
               >
-                {status?.elevenlabs_configured ? (
+                {status?.elevenlabs_api_status === 'error' ? (
+                  <AlertTriangle className="w-3.5 h-3.5 text-red-600" />
+                ) : status?.elevenlabs_configured && status?.elevenlabs_api_status !== 'missing_key' ? (
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                 ) : (
                   <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
                 )}
-                <span>ElevenLabs</span>
+                <span>{status?.elevenlabs_api_status === 'error' ? 'ElevenLabs Error' : 'ElevenLabs'}</span>
               </div>
             </div>
 

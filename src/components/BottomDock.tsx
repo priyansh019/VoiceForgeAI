@@ -127,18 +127,22 @@ export const BottomDock: React.FC<BottomDockProps> = ({
           {/* ElevenLabs Status */}
           <div
             className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium border ${
-              status?.elevenlabs_configured
+              status?.elevenlabs_api_status === 'error'
+                ? 'bg-red-50 text-red-800 border-red-200'
+                : status?.elevenlabs_configured && status?.elevenlabs_api_status !== 'missing_key'
                 ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                 : 'bg-amber-50 text-amber-800 border-amber-200'
             }`}
-            title={status?.elevenlabs_configured ? 'ElevenLabs Conversational AI Active' : 'ELEVENLABS_API_KEY missing'}
+            title={status?.elevenlabs_api_error || (status?.elevenlabs_api_status === 'connected' ? 'ElevenLabs API connected' : 'ELEVENLABS_API_KEY missing')}
           >
-            {status?.elevenlabs_configured ? (
+            {status?.elevenlabs_api_status === 'error' ? (
+              <AlertTriangle className="w-3 h-3 text-red-600" />
+            ) : status?.elevenlabs_configured && status?.elevenlabs_api_status !== 'missing_key' ? (
               <CheckCircle2 className="w-3 h-3 text-emerald-600" />
             ) : (
               <AlertTriangle className="w-3 h-3 text-amber-600" />
             )}
-            <span className="hidden sm:inline">ElevenLabs</span>
+            <span className="hidden sm:inline">{status?.elevenlabs_api_status === 'error' ? 'ElevenLabs Error' : 'ElevenLabs'}</span>
           </div>
 
           {/* Local Run Guide Modal Button */}

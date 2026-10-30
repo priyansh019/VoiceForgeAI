@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Mic,
+  MicOff,
+  MessageSquare,
   PhoneOff,
   Radio,
   Volume2,
@@ -21,6 +23,7 @@ interface VoiceTesterProps {
   onUpdateAgent: (agent: AgentConfig) => void;
   onBackToEditor: () => void;
   elevenlabsConfigured: boolean;
+  elevenlabsApiError?: string | null;
   onSessionSaved: (session: SessionRecord) => void;
 }
 
@@ -29,12 +32,15 @@ export const VoiceTester: React.FC<VoiceTesterProps> = ({
   onUpdateAgent,
   onBackToEditor,
   elevenlabsConfigured,
+  elevenlabsApiError,
   onSessionSaved,
 }) => {
   const [connectionStatus, setConnectionStatus] = useState<
     'idle' | 'deploying' | 'connecting' | 'connected' | 'disconnecting' | 'ended' | 'error'
   >('idle');
   const [activeMode, setActiveMode] = useState<'listening' | 'speaking' | 'idle'>('idle');
+  const [isMicMuted, setIsMicMuted] = useState(false);
+  const [chatInput, setChatInput] = useState('');
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [callDuration, setCallDuration] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -74,12 +80,13 @@ export const VoiceTester: React.FC<VoiceTesterProps> = ({
   const startCall = async () => {
     setErrorMessage(null);
     setSavedSuccess(false);
+    setChatInput('');
 
     let targetAgentId = agent.elevenlabs_agent_id;
 
     // Check if agent needs to be deployed first
-    if (!targetAgentId) {
-      if (!elevenlabsConfigured) {
+    if (!targetAgentId || agent.language === 'hi') {
+      if (!elevenlabsConfigured && !targetAgentId) {
         setErrorMessage(
           'ELEVENLABS_API_KEY is not configured on the server. Live browser voice calls require a real ElevenLabs agent. Please configure ELEVENLABS_API_KEY on the server or in Secrets.'
         );
@@ -102,13 +109,10 @@ export const VoiceTester: React.FC<VoiceTesterProps> = ({
     try {
       setConnectionStatus('connecting');
 
-      // 1. Request microphone access
-      await navigator.mediaDevices.getUserMedia({ audio: true });
-
-      // 2. Fetch real signed session URL from server (keeping API key secure on server)
+      // Fetch a signed session URL; the ElevenLabs SDK requests microphone access itself.
       const signedUrl = await getConversationSignedUrl(targetAgentId);
 
-      // 3. Initiate real ElevenLabs Conversational AI session
+      // Initiate the ElevenLabs Conversational AI session.
       setMessages([
         {
           id: `msg_sys_${Date.now()}`,
@@ -132,6 +136,7 @@ export const VoiceTester: React.FC<VoiceTesterProps> = ({
           setConnectionStatus('ended');
           if (timerRef.current) clearInterval(timerRef.current);
           setActiveMode('idle');
+          setIsMicMuted(false);
         },
         onError: (err: any) => {
           console.error('ElevenLabs session error:', err);
@@ -158,6 +163,7 @@ export const VoiceTester: React.FC<VoiceTesterProps> = ({
       });
 
       conversationRef.current = conv;
+      setIsMicMuted(false);
     } catch (err: any) {
       console.error('Failed to start conversation:', err);
       setErrorMessage(
@@ -166,6 +172,7 @@ export const VoiceTester: React.FC<VoiceTesterProps> = ({
           : err.message || 'Failed to start conversation session.'
       );
       setConnectionStatus('error');
+      setIsMicMuted(false);
       if (timerRef.current) clearInterval(timerRef.current);
     }
   };
@@ -182,7 +189,24 @@ export const VoiceTester: React.FC<VoiceTesterProps> = ({
     } finally {
       setConnectionStatus('ended');
       setActiveMode('idle');
+      setIsMicMuted(false);
     }
+  };
+
+  const toggleMicMuted = () => {
+    if (!conversationRef.current) return;
+    const nextMuted = !isMicMuted;
+    conversationRef.current.setMicMuted(nextMuted);
+    setIsMicMuted(nextMuted);
+  };
+
+  const sendChatMessage = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const text = chatInput.trim();
+    if (!text || connectionStatus !== 'connected' || !conversationRef.current) return;
+
+    conversationRef.current.sendUserMessage(text);
+    setChatInput('');
   };
 
   const handleSaveSession = async () => {
@@ -262,6 +286,16 @@ export const VoiceTester: React.FC<VoiceTesterProps> = ({
         </div>
       </div>
 
+      {elevenlabsApiError && (
+        <div role="alert" className="flex items-start gap-2.5 p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
+          <div>
+            <span className="font-bold block">ElevenLabs API check failed</span>
+            <p className="mt-0.5">{elevenlabsApiError}</p>
+          </div>
+        </div>
+      )}
+
       {/* Main Testing Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Interactive Voice Stage (7 cols) */}
@@ -337,7 +371,9 @@ export const VoiceTester: React.FC<VoiceTesterProps> = ({
               </h2>
               <p className="text-xs text-slate-500 max-w-sm">
                 {connectionStatus === 'connected'
-                  ? 'Speak naturally into your microphone. ElevenLabs processes speech turn-taking in real time.'
+                  ? isMicMuted
+                    ? 'Your microphone is muted. Send a message in the chat to continue the conversation.'
+                    : 'Speak naturally into your microphone. ElevenLabs processes speech turn-taking in real time.'
                   : connectionStatus === 'idle'
                   ? 'Click "Start Live Conversation" to connect your browser audio to ElevenLabs.'
                   : connectionStatus === 'ended'
@@ -369,6 +405,20 @@ export const VoiceTester: React.FC<VoiceTesterProps> = ({
                 </button>
               ) : connectionStatus === 'connected' ? (
                 <div className="flex items-center gap-3">
+                  <button
+                    onClick={toggleMicMuted}
+                    aria-label={isMicMuted ? 'Unmute microphone' : 'Mute microphone'}
+                    aria-pressed={isMicMuted}
+                    title={isMicMuted ? 'Unmute microphone' : 'Mute microphone'}
+                    className={`inline-flex items-center gap-2 px-4 py-3 rounded-2xl font-bold text-sm border transition transform active:scale-95 ${
+                      isMicMuted
+                        ? 'text-amber-800 bg-amber-50 border-amber-200 hover:bg-amber-100'
+                        : 'text-slate-700 bg-white border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    {isMicMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                    <span>{isMicMuted ? 'Unmute' : 'Mute'}</span>
+                  </button>
                   <button
                     onClick={endCall}
                     className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm text-white bg-red-600 hover:bg-red-500 shadow-lg shadow-red-600/25 transition transform active:scale-95"
@@ -469,6 +519,28 @@ export const VoiceTester: React.FC<VoiceTesterProps> = ({
               )}
               <div ref={chatBottomRef} />
             </div>
+
+            {connectionStatus === 'connected' && (
+              <form onSubmit={sendChatMessage} className="flex items-center gap-2 pt-3 border-t border-slate-100">
+                <label className="sr-only" htmlFor="voice-test-chat">Message the agent</label>
+                <input
+                  id="voice-test-chat"
+                  type="text"
+                  value={chatInput}
+                  onChange={(event) => setChatInput(event.target.value)}
+                  placeholder={agent.language === 'hi' ? 'हिंदी में संदेश लिखें…' : 'Type a message…'}
+                  className="min-w-0 flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-cyan-500"
+                />
+                <button
+                  type="submit"
+                  disabled={!chatInput.trim()}
+                  className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white transition"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>Send</span>
+                </button>
+              </form>
+            )}
 
             {/* Post-Call Review / Session Saver */}
             {connectionStatus === 'ended' && (

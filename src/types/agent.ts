@@ -52,6 +52,8 @@ export interface SessionRecord {
 export interface ServerStatus {
   gemini_configured: boolean;
   elevenlabs_configured: boolean;
+  elevenlabs_api_status?: 'connected' | 'missing_key' | 'error';
+  elevenlabs_api_error?: string | null;
   server_time: string;
   node_env: string;
 }

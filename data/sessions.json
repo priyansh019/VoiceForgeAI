@@ -1,5 +1,103 @@
 [
   {
+    "agent_id": "agent_1793352573581_1l930",
+    "agent_name": "Clara - Dental Receptionist",
+    "elevenlabs_agent_id": "agent_2601m662ajjtfygbttb35x7p9bma",
+    "start_time": "2026-10-30T09:30:27.506Z",
+    "end_time": "2026-10-30T09:32:47.712Z",
+    "duration_seconds": 137,
+    "messages": [
+      {
+        "id": "msg_sys_1793352626109",
+        "role": "system",
+        "text": "Starting session with Clara - Dental Receptionist (Rachel voice)...",
+        "timestamp": "03:00:26 PM"
+      },
+      {
+        "id": "msg_1793352628070_0.7258805918534121",
+        "role": "agent",
+        "text": "Hi, thanks for calling Bright Smile Dental! How can I help you today?",
+        "timestamp": "03:00:28 PM"
+      },
+      {
+        "id": "msg_1793352638202_0.9399082223480945",
+        "role": "agent",
+        "text": "I can help you schedule, reschedule, or cancel a dental appointment, share our clinic hours, location, and accepted insurance, and connect you with urgent care if needed. How can I assist you today?",
+        "timestamp": "03:00:38 PM"
+      },
+      {
+        "id": "msg_1793352648228_0.8423247033031113",
+        "role": "agent",
+        "text": "Ji bilkul, main Hindi mein baat kar sakti hoon. Main Bright Smile Dental ki receptionist Clara hoon, aur aapki appointment book karne, badalne ya cancel karne mein madad kar sakti hoon. Bataiye, aap kis liye call kar rahe hain?",
+        "timestamp": "03:00:48 PM"
+      },
+      {
+        "id": "msg_1793352668910_0.5200526033103439",
+        "role": "user",
+        "text": "...",
+        "timestamp": "03:01:08 PM"
+      },
+      {
+        "id": "msg_1793352669319_0.9563795021671022",
+        "role": "agent",
+        "text": "Kya aap wahan hain? Main aapki madad karne ke liye yahan hoon, bas batayiye aapko kya chahiye.",
+        "timestamp": "03:01:09 PM"
+      },
+      {
+        "id": "msg_1793352683768_0.8495409657436569",
+        "role": "agent",
+        "text": "Ji zaroor, main aapki appointment book karne mein madad karungi. Kripya apna naam, pasandida din aur samay, aur contact number bata dijiye.",
+        "timestamp": "03:01:23 PM"
+      },
+      {
+        "id": "msg_1793352699123_0.15172857260197492",
+        "role": "agent",
+        "text": "Theek hai, kal ke liye appointment note kar leti hoon. Kripya apna naam, pasandida samay, aur contact number bata dijiye taaki main booking confirm kar sakoon.",
+        "timestamp": "03:01:39 PM"
+      },
+      {
+        "id": "msg_1793352707524_0.475081801840997",
+        "role": "agent",
+        "text": "Shukriya Sunny ji. Ab kripya apna pasandida samay aur contact number bata dijiye, taaki main kal ki appointment confirm kar sakoon.",
+        "timestamp": "03:01:47 PM"
+      },
+      {
+        "id": "msg_1793352717770_0.8395799506565067",
+        "role": "agent",
+        "text": "Theek hai, kal dopahar chhe baje ka samay note kar liya. Ab kripya apna contact number bata dijiye taaki main appointment confirm kar sakoon.",
+        "timestamp": "03:01:57 PM"
+      },
+      {
+        "id": "msg_1793352726708_0.3691654477357893",
+        "role": "agent",
+        "text": "Dhanyavaad Sunny ji, main aapki appointment kal dopahar chhe baje ke liye note kar rahi hoon. Aapka number bhi le liya hai, hum aapko confirm karne ke liye call karenge. Kya aapko koi khaas dikkat ya ilaaj ke baare mein batana hai?",
+        "timestamp": "03:02:06 PM"
+      },
+      {
+        "id": "msg_1793352736603_0.6847882521719961",
+        "role": "agent",
+        "text": "Koi baat nahi Sunny ji, main aapki appointment kal dopahar chhe baje ke liye confirm kar deti hoon. Agar aapko koi aur jaankari chahiye ya samay badalna ho, toh bata dijiye.",
+        "timestamp": "03:02:16 PM"
+      },
+      {
+        "id": "msg_1793352749920_0.5478730600748425",
+        "role": "agent",
+        "text": "Theek hai Sunny ji, aapki appointment kal dopahar chhe baje ke liye book kar li gayi hai. Bright Smile Dental mein aapka intezaar rahega, dhanyavaad!",
+        "timestamp": "03:02:29 PM"
+      },
+      {
+        "id": "msg_1793352759457_0.02760529867565753",
+        "role": "agent",
+        "text": "Alvida Sunny ji, apna khayal rakhiye aur kal milte hain. Dhanyavaad!",
+        "timestamp": "03:02:39 PM"
+      }
+    ],
+    "rating": 5,
+    "notes": "",
+    "id": "sess_1793352767722_d7saq",
+    "created_at": "2026-10-30T09:32:47.722Z"
+  },
+  {
     "agent_id": "agent_1793280634486_we8uo",
     "agent_name": "HolaAmiga",
     "elevenlabs_agent_id": "agent_8001m63xq6jae7srta15t75wkd7d",

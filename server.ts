@@ -109,10 +109,37 @@ const ai = geminiApiKey
   : null;
 
 // API Route: Status check
-app.get('/api/status', (req, res) => {
+app.get('/api/status', async (req, res) => {
+  const elevenlabsApiKey = process.env.ELEVENLABS_API_KEY;
+  let elevenlabsApiStatus: 'connected' | 'missing_key' | 'error' = elevenlabsApiKey ? 'error' : 'missing_key';
+  let elevenlabsApiError: string | null = elevenlabsApiKey ? 'ElevenLabs API check has not completed.' : 'ELEVENLABS_API_KEY is not configured.';
+
+  if (elevenlabsApiKey) {
+    try {
+      const response = await fetch('https://api.elevenlabs.io/v1/user', {
+        headers: { 'xi-api-key': elevenlabsApiKey },
+        signal: AbortSignal.timeout(5000),
+      });
+      if (response.ok) {
+        elevenlabsApiStatus = 'connected';
+        elevenlabsApiError = null;
+      } else {
+        const details = await response.json().catch(() => null);
+        const message = details?.detail?.message || details?.detail || details?.message;
+        elevenlabsApiError = `ElevenLabs API returned ${response.status}${message ? `: ${message}` : '.'}`;
+      }
+    } catch (error: any) {
+      elevenlabsApiError = error.name === 'TimeoutError'
+        ? 'ElevenLabs API check timed out after 5 seconds.'
+        : `Could not reach ElevenLabs API: ${error.message || 'network error'}`;
+    }
+  }
+
   res.json({
     gemini_configured: Boolean(process.env.GEMINI_API_KEY),
-    elevenlabs_configured: Boolean(process.env.ELEVENLABS_API_KEY),
+    elevenlabs_configured: Boolean(elevenlabsApiKey),
+    elevenlabs_api_status: elevenlabsApiStatus,
+    elevenlabs_api_error: elevenlabsApiError,
     server_time: new Date().toISOString(),
     node_env: process.env.NODE_ENV || 'development',
   });
@@ -121,8 +148,14 @@ app.get('/api/status', (req, res) => {
 // API Route: Voices
 app.get('/api/voices', async (req, res) => {
   const elevenlabsApiKey = process.env.ELEVENLABS_API_KEY;
+  const language = String(req.query.language || '');
 
   if (!elevenlabsApiKey) {
+    if (language === 'hi') {
+      return res.status(503).json({
+        error: 'A working ELEVENLABS_API_KEY is required to find Hindi-trained voices. Add the key, then retry the Hindi voice list.',
+      });
+    }
     // Return curated voices when key is not configured
     return res.json({
       voices: DEFAULT_CURATED_VOICES,
@@ -132,7 +165,10 @@ app.get('/api/voices', async (req, res) => {
   }
 
   try {
-    const response = await fetch('https://api.elevenlabs.io/v1/voices', {
+    const voicesUrl = language === 'hi'
+      ? 'https://api.elevenlabs.io/v2/voices?language=hi&use_cases=conversational&page_size=100'
+      : 'https://api.elevenlabs.io/v1/voices';
+    const response = await fetch(voicesUrl, {
       headers: {
         'xi-api-key': elevenlabsApiKey,
       },
@@ -140,6 +176,13 @@ app.get('/api/voices', async (req, res) => {
 
     if (!response.ok) {
       console.warn(`ElevenLabs voices fetch failed (${response.status}): fallback to curated voices`);
+      if (language === 'hi') {
+        const details = await response.json().catch(() => null);
+        const message = details?.detail?.message || details?.detail || details?.message;
+        return res.status(response.status).json({
+          error: `Could not load Hindi-capable ElevenLabs voices${message ? `: ${message}` : ` (API ${response.status})`}.`,
+        });
+      }
       return res.json({
         voices: DEFAULT_CURATED_VOICES,
         source: 'curated_defaults_fallback',
@@ -152,10 +195,16 @@ app.get('/api/voices', async (req, res) => {
       voice_id: v.voice_id,
       name: v.name,
       category: v.category,
-      description: v.labels?.description || v.labels?.accent || 'ElevenLabs Voice',
+      description: [v.labels?.accent, v.description || v.labels?.description || v.labels?.use_case]
+        .filter(Boolean)
+        .join(' · ') || (language === 'hi' ? 'Hindi-capable ElevenLabs voice' : 'ElevenLabs Voice'),
       preview_url: v.preview_url,
       gender: v.labels?.gender?.toLowerCase() || 'neutral',
     }));
+
+    if (language === 'hi') {
+      return res.json({ voices, source: 'elevenlabs_hindi_library' });
+    }
 
     res.json({
       voices: voices.length > 0 ? voices : DEFAULT_CURATED_VOICES,
@@ -211,6 +260,7 @@ CRITICAL RULES FOR SPOKEN VOICE AGENTS:
    - "EXAVITQu4vr4xnSDxMaL" (Sarah - gentle, empathetic female)
    - "IKne3meq5aSn9XLyUdCD" (Charlie - friendly, casual male)
 5. Generate 3 to 4 realistic test questions that a human tester can speak into their microphone to test the agent.
+${language === 'hi' ? '6. The agent speaks natural Indian Hindi and understands Hindi, Hinglish, and English. Match the user’s language and writing style on every turn: answer in Devanagari when the user writes Hindi in Devanagari, and in Latin-script Hinglish when the user writes Hinglish in Latin script. For spoken replies, use natural Indian Hindi pronunciation and blend English terms naturally when the user does. Keep written chat replies and speech consistent.' : ''}
 
 Generate the response matching the JSON schema.`;
 
@@ -366,14 +416,17 @@ app.post('/api/elevenlabs/agent', async (req, res) => {
     conversation_config: {
       agent: {
         prompt: {
-          prompt: system_prompt,
+          prompt:
+            language === 'hi'
+              ? `${system_prompt}\n\nHindi and Hinglish behavior: Use natural Indian Hindi pronunciation in speech. Understand Hindi, Hinglish, and English. Match each user's language and script: answer in Devanagari Hindi when they use Devanagari, and in Latin-script Hinglish when they use Hinglish in Latin script. Blend English terms naturally when they do. Keep written replies and spoken replies consistent; switch to English if the user writes in English.`
+              : system_prompt,
         },
         first_message: first_message,
         language: language,
       },
       tts: {
         voice_id: voice_id || '21m00Tcm4TlvDq8ikWAM',
-        model_id: "eleven_turbo_v2",
+        model_id: language === 'hi' ? 'eleven_flash_v2_5' : 'eleven_turbo_v2',
       },
       turn: {
         turn_timeout: turn_timeout,

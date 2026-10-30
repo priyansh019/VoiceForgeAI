@@ -44,6 +44,15 @@ export default function App() {
 
         if (statusRes.status === 'fulfilled') {
           setServerStatus(statusRes.value);
+        } else {
+          setServerStatus({
+            gemini_configured: false,
+            elevenlabs_configured: false,
+            elevenlabs_api_status: 'error',
+            elevenlabs_api_error: `Could not check ElevenLabs API: ${statusRes.reason?.message || 'VoiceForge server unavailable'}`,
+            server_time: new Date().toISOString(),
+            node_env: 'unknown',
+          });
         }
         if (voicesRes.status === 'fulfilled') {
           setVoices(voicesRes.value);
@@ -65,6 +74,23 @@ export default function App() {
     }
 
     loadInitialData();
+  }, []);
+
+  // Recheck the ElevenLabs key and API availability while the app is open.
+  useEffect(() => {
+    const intervalId = window.setInterval(async () => {
+      try {
+        setServerStatus(await checkServerStatus());
+      } catch (error: any) {
+        setServerStatus((current) => current ? {
+          ...current,
+          elevenlabs_api_status: 'error',
+          elevenlabs_api_error: `VoiceForge status check failed: ${error.message || 'server unavailable'}`,
+        } : current);
+      }
+    }, 30000);
+
+    return () => window.clearInterval(intervalId);
   }, []);
 
   const refreshAgentsAndSessions = async () => {
@@ -201,6 +227,8 @@ export default function App() {
                       onStartTesting={handleStartTesting}
                       voices={voices}
                       elevenlabsConfigured={Boolean(serverStatus?.elevenlabs_configured)}
+                      elevenlabsApiError={serverStatus?.elevenlabs_api_error}
+                      elevenlabsApiStatus={serverStatus?.elevenlabs_api_status}
                     />
                   </motion.div>
                 )}
@@ -219,6 +247,7 @@ export default function App() {
                       onUpdateAgent={handleUpdateAgent}
                       onBackToEditor={() => changeTab('editor')}
                       elevenlabsConfigured={Boolean(serverStatus?.elevenlabs_configured)}
+                      elevenlabsApiError={serverStatus?.elevenlabs_api_error}
                       onSessionSaved={handleSessionSaved}
                     />
                   </motion.div>

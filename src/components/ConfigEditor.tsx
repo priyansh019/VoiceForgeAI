@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Save,
+  CheckCircle2 as StatusCheck,
   Radio,
   Play,
   Pause,
@@ -15,7 +16,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { AgentConfig, VoiceOption } from '../types/agent';
-import { deployAgentToElevenLabs, saveAgentLocal } from '../services/api';
+import { deployAgentToElevenLabs, fetchVoices, saveAgentLocal } from '../services/api';
 
 interface ConfigEditorProps {
   agent: AgentConfig;
@@ -23,6 +24,8 @@ interface ConfigEditorProps {
   onStartTesting: (agent: AgentConfig) => void;
   voices: VoiceOption[];
   elevenlabsConfigured: boolean;
+  elevenlabsApiError?: string | null;
+  elevenlabsApiStatus?: 'connected' | 'missing_key' | 'error';
 }
 
 export const ConfigEditor: React.FC<ConfigEditorProps> = ({
@@ -31,6 +34,8 @@ export const ConfigEditor: React.FC<ConfigEditorProps> = ({
   onStartTesting,
   voices,
   elevenlabsConfigured,
+  elevenlabsApiError,
+  elevenlabsApiStatus,
 }) => {
   const [formData, setFormData] = useState<AgentConfig>(agent);
   const [activePreviewVoice, setActivePreviewVoice] = useState<string | null>(null);
@@ -40,11 +45,53 @@ export const ConfigEditor: React.FC<ConfigEditorProps> = ({
   const [deploySuccess, setDeploySuccess] = useState<string | null>(null);
   const [deployError, setDeployError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState(false);
+  const [availableVoices, setAvailableVoices] = useState(voices);
+  const [voiceLoadError, setVoiceLoadError] = useState<string | null>(null);
 
   // Sync if parent agent changes
   React.useEffect(() => {
     setFormData(agent);
   }, [agent.id]);
+
+  useEffect(() => {
+    if (formData.language !== 'hi') {
+      setAvailableVoices(voices);
+      setVoiceLoadError(null);
+      return;
+    }
+
+    let isCurrent = true;
+    fetchVoices('hi')
+      .then((hindiVoices) => {
+        if (!isCurrent) return;
+        setAvailableVoices(hindiVoices);
+        setVoiceLoadError(hindiVoices.length ? null : 'No Hindi conversational voices were returned by ElevenLabs. Add a Hindi voice ID below.');
+        if (hindiVoices.length && !hindiVoices.some((voice) => voice.voice_id === formData.voice_id)) {
+          setFormData((current) => ({
+            ...current,
+            voice_id: hindiVoices[0].voice_id,
+            voice_name: hindiVoices[0].name,
+          }));
+        }
+      })
+      .catch((error: any) => {
+        if (!isCurrent) return;
+        setAvailableVoices([]);
+        setVoiceLoadError(error.message || 'Could not load Hindi voices from ElevenLabs.');
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [formData.language, voices]);
+
+  const handleLanguageChange = (language: string) => {
+    handleChange('language', language);
+    if (language !== 'hi') {
+      setAvailableVoices(voices);
+      setVoiceLoadError(null);
+    }
+  };
 
   const handleChange = (field: keyof AgentConfig, value: any) => {
     setFormData((prev) => ({
@@ -214,6 +261,17 @@ export const ConfigEditor: React.FC<ConfigEditorProps> = ({
       </div>
 
       {/* Deploy Status Banners */}
+      <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs ${
+        elevenlabsApiStatus === 'connected'
+          ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+          : elevenlabsApiStatus === 'error'
+          ? 'bg-red-50 border-red-200 text-red-800'
+          : 'bg-amber-50 border-amber-200 text-amber-800'
+      }`} role={elevenlabsApiStatus === 'error' ? 'alert' : 'status'}>
+        {elevenlabsApiStatus === 'connected' ? <StatusCheck className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
+        <span>{elevenlabsApiError || (elevenlabsApiStatus === 'connected' ? 'ElevenLabs API connected' : 'ElevenLabs API key is not configured')}</span>
+      </div>
+
       {deploySuccess && (
         <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center justify-between shadow-xs">
           <div className="flex items-center gap-2">
@@ -400,7 +458,7 @@ export const ConfigEditor: React.FC<ConfigEditorProps> = ({
             </div>
 
             <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
-              {voices.map((v) => {
+              {availableVoices.map((v) => {
                 const isSelected = formData.voice_id === v.voice_id;
                 const isPlaying = activePreviewVoice === v.voice_id;
 
@@ -451,6 +509,12 @@ export const ConfigEditor: React.FC<ConfigEditorProps> = ({
                   </div>
                 );
               })}
+              {formData.language === 'hi' && voiceLoadError && (
+                <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-[11px]">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <span>{voiceLoadError}</span>
+                </div>
+              )}
             </div>
 
             {/* Custom Voice ID Input */}
@@ -517,10 +581,11 @@ export const ConfigEditor: React.FC<ConfigEditorProps> = ({
               <label className="block text-xs font-semibold text-slate-700 mb-1">Language</label>
               <select
                 value={formData.language}
-                onChange={(e) => handleChange('language', e.target.value)}
+                onChange={(e) => handleLanguageChange(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-cyan-500 shadow-2xs"
               >
                 <option value="en">English (en)</option>
+                <option value="hi">Hindi (hi)</option>
                 <option value="es">Spanish (es)</option>
                 <option value="fr">French (fr)</option>
                 <option value="de">German (de)</option>

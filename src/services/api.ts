@@ -22,12 +22,13 @@ export async function generateAgentConfig(payload: GenerateAgentRequest): Promis
   return data;
 }
 
-export async function fetchVoices(): Promise<VoiceOption[]> {
-  const res = await fetch('/api/voices');
+export async function fetchVoices(language?: string): Promise<VoiceOption[]> {
+  const query = language ? `?language=${encodeURIComponent(language)}` : '';
+  const res = await fetch(`/api/voices${query}`);
+  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error('Failed to fetch voices');
+    throw new Error(data.error || `Failed to fetch voices (${res.status})`);
   }
-  const data = await res.json();
   return data.voices || [];
 }
 
