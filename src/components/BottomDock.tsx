@@ -31,18 +31,6 @@ export const BottomDock: React.FC<BottomDockProps> = ({
   return (
     <div className="fixed bottom-3 sm:bottom-5 inset-x-0 mx-auto w-fit max-w-[95vw] z-50 pointer-events-auto">
       <div className="flex items-center gap-1.5 sm:gap-2.5 p-1.5 sm:p-2 rounded-2xl bg-white/92 backdrop-blur-xl border border-slate-200/90 shadow-xl shadow-slate-300/40 text-slate-800 transition-all">
-        {/* Brand Miniature */}
-        <div className="hidden lg:flex items-center gap-2 pl-2 pr-1 border-r border-slate-200/80">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-cyan-500 via-indigo-500 to-fuchsia-500 p-0.5 shadow-xs">
-            <div className="w-full h-full bg-white rounded-[6px] flex items-center justify-center">
-              <Radio className="w-3.5 h-3.5 text-cyan-600 animate-pulse" />
-            </div>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-extrabold text-slate-900 tracking-tight leading-none">VoiceForge</span>
-            <span className="text-[9px] text-slate-400 font-medium">ElevenLabs AI</span>
-          </div>
-        </div>
 
         {/* Navigation Tabs */}
         <nav className="flex items-center gap-1 bg-slate-100/90 p-1 rounded-xl border border-slate-200/80">

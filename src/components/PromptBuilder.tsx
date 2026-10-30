@@ -13,6 +13,7 @@ import {
 import { AgentConfig, GenerateAgentRequest } from '../types/agent';
 import { generateAgentConfig } from '../services/api';
 import { SimpleLivingHero } from './ui/prompt-bond';
+import { type AgentStatus } from '@/components/ui/agent-state';
 
 interface PromptBuilderProps {
   onAgentGenerated: (agent: AgentConfig) => void;
@@ -66,11 +67,26 @@ export const PromptBuilder: React.FC<PromptBuilderProps> = ({
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Agent State on Home Screen
+  const [agentStatus, setAgentStatus] = useState<AgentStatus>('idle');
+  const [statusDescription, setStatusDescription] = useState<string>(
+    'Ready when you are — enter a prompt below to forge your live voice agent'
+  );
+
   const executeGeneration = async (descText: string) => {
     if (!descText.trim()) return;
     try {
       setIsConfiguring(true);
       setError(null);
+      // Stage 1: Transition into thinking automatically on prompt submit
+      setAgentStatus('thinking');
+      setStatusDescription('Connecting conversational pieces with Gemini 3.8 Flash...');
+
+      // Stage 2: Automatically shift to working after 900ms to reflect deep synthesis
+      const workingTimer = setTimeout(() => {
+        setAgentStatus('working');
+        setStatusDescription('Formulating spoken boundaries & binding ElevenLabs voice persona...');
+      }, 900);
 
       const payload: GenerateAgentRequest = {
         description: descText.trim(),
@@ -81,16 +97,28 @@ export const PromptBuilder: React.FC<PromptBuilderProps> = ({
       };
 
       const generatedAgent = await generateAgentConfig(payload);
-      onAgentGenerated(generatedAgent);
+      clearTimeout(workingTimer);
+
+      // Stage 3: Complete state reveal with checkmark
+      setAgentStatus('complete');
+      setStatusDescription(`Voice agent "${generatedAgent.name}" forged! Advancing to editor...`);
+
+      // Automatically advance to editor tab
+      setTimeout(() => {
+        setIsConfiguring(false);
+        onAgentGenerated(generatedAgent);
+      }, 700);
     } catch (err: any) {
       console.error(err);
+      setAgentStatus('error');
+      setStatusDescription(err.message || 'Something interrupted this step. You can try again.');
       setError(err.message || 'Failed to generate agent.');
-    } finally {
       setIsConfiguring(false);
     }
   };
 
   const handleSelectTemplate = (tpl: typeof TEMPLATES[0]) => {
+    if (isConfiguring) return;
     setDescription(tpl.prompt);
     setRole(tpl.role);
     setStyle(tpl.style);
@@ -100,13 +128,15 @@ export const PromptBuilder: React.FC<PromptBuilderProps> = ({
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-8 pb-20">
-      {/* Interactive Living Hero Capsule from attached prompt */}
+      {/* Interactive Living Hero with Freely Floating Agent Icon */}
       <SimpleLivingHero
         onPromptSubmit={(text) => {
           setDescription(text);
           executeGeneration(text);
         }}
         isGenerating={isConfiguring}
+        agentStatus={agentStatus}
+        statusDescription={statusDescription}
         suggestedPrompts={[
           'Dental clinic receptionist assistant',
           'Inbound B2B SaaS sales SDR rep',
@@ -114,17 +144,6 @@ export const PromptBuilder: React.FC<PromptBuilderProps> = ({
           '24/7 IT helpdesk troubleshooting assistant',
         ]}
       />
-
-      {/* Loading state indicator */}
-      {isConfiguring && (
-        <div className="flex flex-col items-center justify-center p-6 bg-white/90 backdrop-blur-md border border-slate-200/90 rounded-2xl shadow-lg max-w-md mx-auto text-center space-y-2 animate-pulse">
-          <Loader2 className="w-7 h-7 text-cyan-600 animate-spin" />
-          <h3 className="text-sm font-bold text-slate-800">Synthesizing Spoken Voice Agent...</h3>
-          <p className="text-xs text-slate-500">
-            Formulating spoken turn boundaries, vocal persona, and ElevenLabs configuration with Gemini 3.8 Flash.
-          </p>
-        </div>
-      )}
 
       {/* Error alert */}
       {error && (
@@ -149,7 +168,11 @@ export const PromptBuilder: React.FC<PromptBuilderProps> = ({
             <div
               key={idx}
               onClick={() => handleSelectTemplate(t)}
-              className="p-4 rounded-2xl bg-white/90 hover:bg-white backdrop-blur-md border border-slate-200/90 hover:border-cyan-300 shadow-xs hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between space-y-3"
+              className={`p-4 rounded-2xl bg-white/90 hover:bg-white backdrop-blur-md border border-slate-200/90 shadow-xs transition-all flex flex-col justify-between space-y-3 ${
+                isConfiguring
+                  ? 'opacity-40 pointer-events-none cursor-not-allowed'
+                  : 'cursor-pointer hover:border-cyan-300 hover:shadow-md group'
+              }`}
             >
               <div>
                 <div className="flex items-center justify-between mb-1">

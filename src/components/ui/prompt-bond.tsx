@@ -8,8 +8,9 @@ import { type ClassValue, clsx } from "clsx";
 import { animate, type AnimationPlaybackControls, type AnimationSequence, cancelFrame, frame } from "motion";
 import { motion } from "motion/react";
 import { twMerge } from "tailwind-merge";
-import "three";
 import { AgentConfig } from "../../types/agent";
+import { AgentState, type AgentStatus } from "./agent-state";
+export type { AgentStatus };
 
 // ---- registry/cojeev/lib/utils.ts (inlined) ----
 function cn(...inputs: ClassValue[]) {
@@ -485,12 +486,16 @@ interface SimpleLivingHeroProps {
   onPromptSubmit: (text: string) => void;
   isGenerating: boolean;
   suggestedPrompts?: string[];
+  agentStatus?: AgentStatus;
+  statusDescription?: string;
 }
 
 export const SimpleLivingHero: React.FC<SimpleLivingHeroProps> = ({
   onPromptSubmit,
   isGenerating,
   suggestedPrompts = VOICE_AGENT_STORIES.map(s => s.prompt),
+  agentStatus = "idle",
+  statusDescription,
 }) => {
   const [inputValue, setInputValue] = React.useState("");
 
@@ -502,29 +507,39 @@ export const SimpleLivingHero: React.FC<SimpleLivingHeroProps> = ({
   };
 
   const handlePickThought = (text: string) => {
+    if (isGenerating) return;
     setInputValue(text);
     onPromptSubmit(text);
   };
 
   return (
-    <div className="relative w-full max-w-4xl mx-auto flex flex-col items-center justify-center py-6 sm:py-12 z-20">
+    <div className="relative w-full max-w-4xl mx-auto flex flex-col items-center justify-center py-2 sm:py-6 z-20">
       {/* Title with variable proximity feeling */}
-      <div className="text-center space-y-3 mb-8">
+      <div className="text-center space-y-3 mb-4">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white/90 text-slate-800 border border-slate-200/90 shadow-xs backdrop-blur-md">
           <span className="w-2 h-2 rounded-full bg-cyan-500 animate-ping" />
           <span>Interactive Voice Agent Synthesis</span>
         </div>
 
-        <h1 className="text-4xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-[1.1]">
+        <h1 className="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-[1.1]">
           Every voice agent. <br className="hidden sm:inline" />
           <span className="bg-gradient-to-r from-cyan-600 via-indigo-600 to-fuchsia-600 bg-clip-text text-transparent">
             A little more alive.
           </span>
         </h1>
 
-        <p className="text-sm sm:text-base text-slate-600 max-w-xl mx-auto leading-relaxed">
+        <p className="text-xs sm:text-sm text-slate-600 max-w-xl mx-auto leading-relaxed">
           Type what you want your agent to say and do. VoiceForge instantly structures conversational turn rules, spoken boundaries, and binds a real ElevenLabs voice.
         </p>
+      </div>
+
+      {/* Front-Page Living Cojeev Agent Icon - Freely floating on the home screen */}
+      <div className="flex flex-col items-center justify-center my-2 sm:my-4 w-full">
+        <AgentState
+          status={agentStatus}
+          size="lg"
+          description={statusDescription}
+        />
       </div>
 
       {/* Living Interactive Prompt Capsule */}
@@ -559,22 +574,24 @@ export const SimpleLivingHero: React.FC<SimpleLivingHeroProps> = ({
           </button>
         </form>
 
-        {/* Thought Chips to Try */}
-        <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mr-1">
-            Try a thought:
-          </span>
-          {suggestedPrompts.slice(0, 4).map((thought, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => handlePickThought(thought)}
-              className="text-xs px-3.5 py-1.5 rounded-full bg-white/85 hover:bg-white text-slate-700 hover:text-cyan-700 border border-slate-200/90 hover:border-cyan-300 shadow-2xs hover:shadow-xs transition transform hover:-translate-y-0.5"
-            >
-              "{thought}"
-            </button>
-          ))}
-        </div>
+        {/* Thought Chips to Try — hidden while forging is active */}
+        {!isGenerating && (
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2 animate-in fade-in duration-300">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mr-1">
+              Try a thought:
+            </span>
+            {suggestedPrompts.slice(0, 4).map((thought, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => handlePickThought(thought)}
+                className="text-xs px-3.5 py-1.5 rounded-full bg-white/85 hover:bg-white text-slate-700 hover:text-cyan-700 border border-slate-200/90 hover:border-cyan-300 shadow-2xs hover:shadow-xs transition transform hover:-translate-y-0.5"
+              >
+                "{thought}"
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
